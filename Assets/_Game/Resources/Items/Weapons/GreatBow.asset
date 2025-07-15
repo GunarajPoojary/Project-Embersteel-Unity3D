@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04bd309d8ed0b6949a4d6461c1ad5fb3, type: 3}
+  m_Name: GreatBow
+  m_EditorClassIdentifier: 
+  Description: 
+  _stats: {fileID: 0}
+  _displayName: Great Bow
+  _icon: {fileID: 21300000, guid: a43cd22915bdded4782da04ed0767c30, type: 3}
+  _equipmentDescription: 
+  _type: 0
+  _id: 49457689628d448a8016d815ffdc7d1a
+  _animatorOverrideController: {fileID: 0}

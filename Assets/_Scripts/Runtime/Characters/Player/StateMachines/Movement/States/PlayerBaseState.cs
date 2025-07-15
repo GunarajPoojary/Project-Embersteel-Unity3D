@@ -12,6 +12,8 @@ namespace ProjectEmbersteel.Player.StateMachines.Movement.States
     {
         protected PlayerStateMachine _stateMachine;
 
+        private const float GRAVITY = -9.81f;
+
         protected readonly PlayerGroundedData _groundedData;
         protected readonly PlayerAirborneData _airborneData;
 

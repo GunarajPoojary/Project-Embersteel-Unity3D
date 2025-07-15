@@ -3,10 +3,6 @@ using UnityEngine;
 
 namespace ProjectEmbersteel.EquipmentSystem
 {
-    /// <summary>
-    /// Example equipment class that implements IStatModifierProvider.
-    /// Demonstrates how to create items that provide stat bonuses.
-    /// </summary>
     public class Equipment : MonoBehaviour, IEquippable
     {
         [SerializeField] private EquipmentStatsSO _baseStats;

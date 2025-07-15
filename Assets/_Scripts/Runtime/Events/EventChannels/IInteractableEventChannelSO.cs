@@ -8,7 +8,7 @@ namespace ProjectEmbersteel.Events.EventChannel
     /// This class is used for Events that have a IInteractable argument.
     /// Example: An event to toggle a interactable UI interface
     /// </summary>
-    [CreateAssetMenu(fileName = "newIInteractableEventChannel", menuName = "Custom/Events/IInteractable Event Channel")]
+    [CreateAssetMenu(fileName = "newIInteractableEvent", menuName = "Custom/Events/IInteractable Event Channel")]
     public class IInteractableEventChannelSO : DescriptionBaseSO
     {
         public event UnityAction<bool, IInteractable> OnEventRaised;

@@ -1,84 +1,66 @@
 using System;
 using System.Collections.Generic;
 using ProjectEmbersteel.Events.EventChannel;
-using ProjectEmbersteel.Inventory;
-using ProjectEmbersteel.Item;
+using ProjectEmbersteel.Equipment;
 using ProjectEmbersteel.StatSystem;
 using ProjectEmbersteel.Utilities;
 using UnityEngine;
 
 namespace ProjectEmbersteel.UI.Inventory
 {
-    [Serializable]
-    public struct ItemContentPanel
-    {
-        public ItemType Type;
-        public Transform ContentPanel;
-    }
     public class UIInventory : MonoBehaviour
     {
+
+        [Serializable]
+        private struct EquipmentContentPanel
+        {
+            public EquipmentType Type;
+            public Transform ContentPanel;
+        }
+
         [Header("UI References")]
         [SerializeField] private GameObject _inventoryPanel;
-        [SerializeField] private ItemContentPanel[] _itemContentPanels;
+        [SerializeField] private EquipmentContentPanel[] _equipmentContentPanels;
         [SerializeField] private UIInventorySlot _slotPrefab;
 
-        [Header("Item Details Panel")]
-        [SerializeField] private UIInventoryItemOverview _itemOverviewPanel;
-        [SerializeField] private UIInventoryResponsePopup _uiInventoryResponsePopup;
+        [Header("Equipment Details Panel")]
+        [SerializeField] private UIInventoryEquipmentOverview _equipmentOverviewPanel;
 
-        [Header("Listening to")]
-        [SerializeField] private StatUpdateEventChannelSO _statUpdateEventChannel;
-
-        [Header("Broadcasting to")]
-        [SerializeField] private VoidEventChannelSO _openInventoryEventChannel;
-        [SerializeField] private VoidEventChannelSO _closeInventoryEventChannel;
         [SerializeField] private PlayerAttributesUI _attributesUI;
         [SerializeField] private AudioSource _uiAudioSource;
 
         [Header("Configuration")]
         [SerializeField] private int _poolSize = 100;
 
+        [Header("Publishers")]
+        [SerializeField] private VoidEventChannelSO _toggleInventoryMenuEvent;
+        [SerializeField] private VoidEventChannelSO _openInventoryMenuEvent;
+        [SerializeField] private VoidEventChannelSO _closeInventoryMenuEvent;
+
+        [Header("Listener")]
+        [SerializeField] private StatEventChannelSO _statUpdateEvent;
+        [SerializeField] private EquipmentSOEventChannelSO _addEquipmentToInventorySuccessEvent;
+
         // Object pooling
         private ObjectPool<UIInventorySlot> _slotsPool;
-        private RectTransform _itemPoolContainer;
+        private RectTransform _equipmentPoolContainer;
 
         // Data structures for efficient inventory management
-        private readonly Dictionary<ItemType, List<UIInventorySlot>> _slotUIsByType = new();
-        private readonly Dictionary<ItemSO, UIInventorySlot> _stackableItemSlots = new();
-        private Dictionary<ItemType, Transform> _itemContentPanelsMap;
+        private readonly Dictionary<EquipmentType, List<UIInventorySlot>> _slotUIsByType = new();
+        private Dictionary<EquipmentType, Transform> _equipmentContentPanelsMap;
 
         #region Unity Lifecycle
         private void Awake()
         {
-            ValidateSerializedFields();
             InitializeInventory();
-            SetContentPanelsByItemType();
+            SetContentPanelsByEquipmentType();
         }
 
         private void OnEnable() => SubscribeToEvents(true);
-
         private void OnDisable() => SubscribeToEvents(false);
 
         private void OnDestroy() => CleanupSlotEvents();
         #endregion
-
-        #region Initialization
-        private void ValidateSerializedFields()
-        {
-#if UNITY_EDITOR
-            if (_inventoryPanel == null)
-                Debug.LogError("Inventory Panel is not assigned", this);
-
-            if (_slotPrefab == null)
-                Debug.LogError("Slot Prefab is not assigned", this);
-
-            if (_itemOverviewPanel == null)
-                Debug.LogError("Item Overview Panel is not assigned", this);
-
-            if (_uiInventoryResponsePopup == null)
-                Debug.LogError("Inventory Response Popup is not assigned", this);
-#endif
-        }
 
         private void InitializeInventory()
         {
@@ -91,18 +73,39 @@ namespace ProjectEmbersteel.UI.Inventory
         private void SubscribeToEvents(bool subscribe)
         {
             if (subscribe)
-                _statUpdateEventChannel.OnEventRaised += OnUpdateBaseStats;
+            {
+                _statUpdateEvent.OnEventRaised += UpdateBaseStats;
+                _toggleInventoryMenuEvent.OnEventRaised += ToggleInventoryMenu;
+                _addEquipmentToInventorySuccessEvent.OnEventRaised += AddSlotUI;
+            }
             else
-                _statUpdateEventChannel.OnEventRaised -= OnUpdateBaseStats;
+            {
+                _statUpdateEvent.OnEventRaised -= UpdateBaseStats;
+                _toggleInventoryMenuEvent.OnEventRaised -= ToggleInventoryMenu;
+                _addEquipmentToInventorySuccessEvent.OnEventRaised -= AddSlotUI;
+            }
         }
 
-        private void OnUpdateBaseStats(StatType statType, Stat stat) => _attributesUI.OnUpdateBaseStats(statType, stat);
+        public void CloseInventoryUI() => _inventoryPanel.SetActive(false);
+
+        private void ToggleInventoryMenu()
+        {
+            _inventoryPanel.SetActive(!_inventoryPanel.activeSelf);
+
+            if (_inventoryPanel.activeSelf)
+                _openInventoryMenuEvent.RaiseEvent();
+            else
+                _closeInventoryMenuEvent.RaiseEvent();
+        }
+
+
+        private void UpdateBaseStats(StatType statType, Stat stat) => _attributesUI.UpdateBaseStats(statType, stat);
 
         private void CreateSlotPoolContainer()
         {
-            GameObject containerGO = new GameObject("InventorySlotPool", typeof(RectTransform));
-            _itemPoolContainer = containerGO.GetComponent<RectTransform>();
-            _itemPoolContainer.SetParent((RectTransform)transform);
+            GameObject containerGO = new("InventorySlotPool", typeof(RectTransform));
+            _equipmentPoolContainer = containerGO.GetComponent<RectTransform>();
+            _equipmentPoolContainer.SetParent((RectTransform)transform);
         }
 
         private void InitializeObjectPool()
@@ -115,114 +118,59 @@ namespace ProjectEmbersteel.UI.Inventory
             );
         }
 
-        private void SetContentPanelsByItemType()
+        private void SetContentPanelsByEquipmentType()
         {
-            _itemContentPanelsMap = new Dictionary<ItemType, Transform>(_itemContentPanels.Length);
+            _equipmentContentPanelsMap = new Dictionary<EquipmentType, Transform>(_equipmentContentPanels.Length);
 
-            foreach (ItemContentPanel itemContentEntry in _itemContentPanels)
-                _itemContentPanelsMap[itemContentEntry.Type] = itemContentEntry.ContentPanel;
+            foreach (EquipmentContentPanel equipmentContentEntry in _equipmentContentPanels)
+                _equipmentContentPanelsMap[equipmentContentEntry.Type] = equipmentContentEntry.ContentPanel;
         }
-        #endregion
 
         #region Public Interface
-        public void AddSlotUI(InventoryItem item)
+        public void AddSlotUI(EquipmentSO equipment)
         {
-            if (!ValidateInventoryItem(item)) return;
+            if (equipment == null) return;
 
-            ItemType itemType = item.Item.Type;
+            EquipmentType equipmentType = equipment.Type;
 
-            if (!_itemContentPanelsMap.TryGetValue(itemType, out Transform contentPanel))
+            if (!_equipmentContentPanelsMap.TryGetValue(equipmentType, out Transform contentPanel))
             {
-                Debug.LogError($"No container found for item type: {itemType}");
+                Debug.LogError($"No container found for equipment type: {equipmentType}");
                 return;
             }
 
-            EnsureSlotListExists(itemType);
+            EnsureSlotListExists(equipmentType);
 
-            if (item.Item.IsStackable)
-                HandleStackableItem(item, itemType, contentPanel);
-            else
-                HandleNonStackableItem(item, itemType, contentPanel);
-        }
-
-        public void ToggleInventory() => ToggleInventory(!_inventoryPanel.activeSelf);
-        public void ToggleInventory(bool toggle)
-        {
-            _inventoryPanel.SetActive(toggle);
-
-            if (toggle)
-                _openInventoryEventChannel.RaiseEvent();
-            else
-                _closeInventoryEventChannel.RaiseEvent();
+            CreateAndSetupSlot(equipment, equipmentType, contentPanel);
         }
         #endregion
 
-
-        #region Item Management
-        private bool ValidateInventoryItem(InventoryItem item)
+        #region Equipment Management
+        private void EnsureSlotListExists(EquipmentType equipmentType)
         {
-            if (item?.Item == null)
-            {
-                OnItemNull();
-                return false;
-            }
-            return true;
+            if (!_slotUIsByType.ContainsKey(equipmentType))
+                _slotUIsByType[equipmentType] = new List<UIInventorySlot>();
         }
 
-        private void EnsureSlotListExists(ItemType itemType)
-        {
-            if (!_slotUIsByType.ContainsKey(itemType))
-                _slotUIsByType[itemType] = new List<UIInventorySlot>();
-        }
-
-        private void HandleStackableItem(InventoryItem item, ItemType itemType, Transform container)
-        {
-            if (_stackableItemSlots.TryGetValue(item.Item, out UIInventorySlot existingSlot))
-            {
-                existingSlot.UpdateStackCount();
-                return;
-            }
-
-            UIInventorySlot newSlot = CreateAndSetupSlot(item, itemType, container);
-            _stackableItemSlots[item.Item] = newSlot;
-        }
-
-        private void HandleNonStackableItem(InventoryItem item, ItemType itemType, Transform container)
-        {
-            CreateAndSetupSlot(item, itemType, container);
-        }
-
-        private UIInventorySlot CreateAndSetupSlot(InventoryItem item, ItemType itemType, Transform container)
+        private UIInventorySlot CreateAndSetupSlot(EquipmentSO equipment, EquipmentType equipmentType, Transform container)
         {
             UIInventorySlot slot = _slotsPool.Get();
-            slot.Initialize(item, container, _uiAudioSource);
-            slot.OnClick += OnItemClicked;
+            slot.Initialize(equipment, container, _uiAudioSource);
+            slot.OnClick += OnEquipmentClicked;
 
-            _slotUIsByType[itemType].Add(slot);
+            _slotUIsByType[equipmentType].Add(slot);
             return slot;
         }
         #endregion
 
         #region Event Handlers
-        private void OnItemClicked(ItemSO item) => _itemOverviewPanel.DisplayItemOverview(item);
-        #endregion
-
-        #region Popup Notifications
-        public void OnItemStackLimitReached(string itemName) => DisplayInventoryResponsePopup($"{itemName} stack limit has been reached.");
-
-        public void OnInvalidQuantity(int quantity) => DisplayInventoryResponsePopup($"Provided quantity ({quantity}) is not valid.");
-
-        public void OnInventoryFull() => DisplayInventoryResponsePopup("Inventory is full.");
-
-        public void OnItemNull() => DisplayInventoryResponsePopup("Provided item is null.");
-
-        private void DisplayInventoryResponsePopup(string message) => _uiInventoryResponsePopup?.ShowPopup(message);
+        private void OnEquipmentClicked(EquipmentSO equipment) => _equipmentOverviewPanel.DisplayEquipmentOverview(equipment);
         #endregion
 
         #region Object Pool Management
         private UIInventorySlot CreateSlotObject()
         {
-            UIInventorySlot slot = Instantiate(_slotPrefab, _itemPoolContainer);
+            UIInventorySlot slot = Instantiate(_slotPrefab, _equipmentPoolContainer);
             slot.gameObject.SetActive(false);
             return slot;
         }
@@ -232,7 +180,7 @@ namespace ProjectEmbersteel.UI.Inventory
         private void OnSlotReleased(UIInventorySlot slot)
         {
             slot.gameObject.SetActive(false);
-            slot.OnClick -= OnItemClicked; // Prevent memory leaks
+            slot.OnClick -= OnEquipmentClicked; // Prevent memory leaks
         }
         #endregion
 
@@ -244,7 +192,7 @@ namespace ProjectEmbersteel.UI.Inventory
                 foreach (UIInventorySlot slot in slotList)
                 {
                     if (slot != null)
-                        slot.OnClick -= OnItemClicked;
+                        slot.OnClick -= OnEquipmentClicked;
                 }
             }
         }

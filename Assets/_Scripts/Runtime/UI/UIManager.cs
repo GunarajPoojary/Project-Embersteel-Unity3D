@@ -1,44 +1,67 @@
-﻿using ProjectEmbersteel.DialogueSystem;
+﻿using System;
 using ProjectEmbersteel.Events.EventChannel;
+using ProjectEmbersteel.InteractionSystem;
+using ProjectEmbersteel.UI.Interaction;
+using ProjectEmbersteel.UI.Inventory;
+using ProjectEmbersteel.Utilities.Inputs.ScriptableObjects;
 using UnityEngine;
 
 namespace ProjectEmbersteel.UI
 {
+	/// <summary>
+	/// Manages all UI panels in the game (Drops preview, interaction, inventory).
+	/// Listens to input and interaction events to toggle appropriate UI elements.
+	/// </summary>
 	public class UIManager : MonoBehaviour
 	{
-		public static UIManager Instance { get; private set;}
+		[Header(" UI omponents")]
+		[SerializeField] private UIDropsPreview _uIDropsPreview;
+		[SerializeField] private UIInteraction _uIInteraction;
+		[SerializeField] private UIInventory _uIInventory;
+		[SerializeField] private InputReader _input;
 
-		[SerializeField] private GameObject _interactionPanel;
-		[SerializeField] private BoolEventChannelSO _toggleInteractionPanel;
+        [Header("Listener")]
+		[SerializeField] private IInteractableEventChannelSO _triggerInteractableEvent;
 
-        private void Awake() => Instance = this;
+		public event Action OnCloseDropsPreviewUI;
 
-        private void OnEnable() => SubscribeToEvents(true);
-        private void OnDisable() => SubscribeToEvents(false);
+		private void OnEnable() => SubscribeToEvents(true);
+		private void OnDisable() => SubscribeToEvents(false);
 
-        private void SubscribeToEvents(bool subscribe)
+		public void CloseInventory() => _uIInventory.CloseInventoryUI();
+
+		private void SubscribeToEvents(bool subscribe)
 		{
 			if (subscribe)
-				_toggleInteractionPanel.OnEventRaised += ToggleInteractionUI;
+			{
+				_triggerInteractableEvent.OnEventRaised += ToggleInteractionUI;
+				_input.InteractPerformedAction += CloseInteractionUI;
+				_uIDropsPreview.OnCloseDropsPreviewUI += CloseDropsPreview;
+			}
 			else
-				_toggleInteractionPanel.OnEventRaised -= ToggleInteractionUI;
+			{
+				_triggerInteractableEvent.OnEventRaised -= ToggleInteractionUI;
+				_input.InteractPerformedAction -= CloseInteractionUI;
+				_uIDropsPreview.OnCloseDropsPreviewUI -= CloseDropsPreview;
+			}
 		}
 
-		public void ToggleInteractionUI(bool toggle) => _interactionPanel.SetActive(toggle);
+		// Called when the drop preview UI is closed.
+		private void CloseDropsPreview() => OnCloseDropsPreviewUI?.Invoke();
 
-		private void OpenUIDialogue(string dialogueLine, Actor actor)
-		{
-			bool isProtagonistTalking = (actor.ActorType == ActorType.Player);
-			// _dialogueController.SetDialogue(dialogueLine, actor, isProtagonistTalking);
-			// _interactionPanel.gameObject.SetActive(false);
-			// _dialogueController.gameObject.SetActive(true);
-		}
+		// Hides the interaction UI.
+		// Used when game state changed.
+		public void CloseInteractionUI() => _uIInteraction.gameObject.SetActive(false);
+		public void CloseDropsPreviewUI() => _uIDropsPreview.gameObject.SetActive(false);
 
-		private void CloseUIDialogue(int dialogueType)
+		// Toggles the interaction UI visibility based on whether the player is near an interactable.
+		private void ToggleInteractionUI(bool toggle, IInteractable interactable)
 		{
-			// _selectionHandler.Unselect();
-			// _dialogueController.gameObject.SetActive(false);
-			// _onInteractionEndedEvent.RaiseEvent();
+			// Update the interaction type displayed on the UI
+			_uIInteraction.SetInteractionType(interactable.InteractionType);
+
+			// Show or hide the interaction panel
+			_uIInteraction.gameObject.SetActive(toggle);
 		}
 	}
 }

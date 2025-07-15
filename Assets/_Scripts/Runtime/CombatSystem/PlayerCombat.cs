@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using ProjectEmbersteel.Item;
+using ProjectEmbersteel.Equipment;
 using UnityEngine;
 
 namespace ProjectEmbersteel

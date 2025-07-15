@@ -6,7 +6,7 @@ namespace ProjectEmbersteel.DialogueSystem
 {
     public class DialogueManager : MonoBehaviour
     {
-        [SerializeField] private DialogueEventChannelSO _startDialogue;
+        [SerializeField] private DialogueSOEventChannelSO _startDialogue;
         [SerializeField] private DialogueUI _dialogueUI;
         [SerializeField] private VoidEventChannelSO _playNextDialogueLine;
 
@@ -21,7 +21,7 @@ namespace ProjectEmbersteel.DialogueSystem
                 _startDialogue.OnEventRaised -= StartDialogue;
         }
 
-        public void StartDialogue(DialogueDataSO dialogueData)
+        public void StartDialogue(DialogueSO dialogueData)
         {
             Debug.Log("Do Nothing for now");
         }

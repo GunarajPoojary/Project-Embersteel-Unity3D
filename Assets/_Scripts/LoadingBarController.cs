@@ -1,5 +1,4 @@
-﻿using System;
-using ProjectEmbersteel.Events.EventChannel;
+﻿using ProjectEmbersteel.Events.EventChannel;
 using ProjectEmbersteel.UI;
 using UnityEngine;
 using UnityEngine.ResourceManagement.AsyncOperations;
@@ -11,24 +10,23 @@ namespace ProjectEmbersteel
     {
         [SerializeField] private UILoadingBar _loadingInterface = default;
 
-        [Header("Listening on")]
-        //[SerializeField] private BoolEventChannelSO _toggleLoadingScreen = default;
-        [SerializeField] private SceneLoadProgressEventChannelSO _loadingScreen = default;
+        //[SerializeField] private BoolEventChannelSO _toggleLoadingScreenEvent = default;
+        [Header("Listener")]
+        [SerializeField] private SceneLoadProgressEventChannelSO _sceneLoadingProgressEvent = default;
 
         private void OnEnable() => SubscribeToLoadingScreenEvent(true);
-
         private void OnDisable() => SubscribeToLoadingScreenEvent(false);
 
         private void SubscribeToLoadingScreenEvent(bool subscribe)
         {
             if (subscribe)
-                _loadingScreen.OnEventRaised += ToggleLoadingScreen;
+                _sceneLoadingProgressEvent.OnEventRaised += HandleSceneLoadingProgress;
             else
-                _loadingScreen.OnEventRaised -= ToggleLoadingScreen;
+                _sceneLoadingProgressEvent.OnEventRaised -= HandleSceneLoadingProgress;
         }
 
 
-        private void ToggleLoadingScreen(bool state, AsyncOperationHandle<SceneInstance> opHandle)
+        private void HandleSceneLoadingProgress(bool state, AsyncOperationHandle<SceneInstance> opHandle)
         {
             _loadingInterface.gameObject.SetActive(state);
 

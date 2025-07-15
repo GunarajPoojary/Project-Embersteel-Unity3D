@@ -2,52 +2,74 @@ using System;
 
 namespace ProjectEmbersteel.StateMachine
 {
+    /// <summary>
+    /// Represents the finite state machine for the game.
+    /// </summary>
     public class GameStateMachine
     {
         private GameState _currentState;
+        private GameState _previousState;
 
+        // Actions to invoke when entering a specific state
         public Action InventoryEnterAction;
         public Action DialogueEnterAction;
         public Action CombatEnterAction;
+        public Action InteractEnterAction;
+        public Action DropCollectEnterAction;
 
+        // Actions to invoke when exiting a specific state
         public Action InventoryExitAction;
         public Action DialogueExitAction;
         public Action CombatExitAction;
+        public Action InteractExitAction;
+        public Action DropCollectExitAction;
 
-        public void AddEnterActionCallbacks(Action inventoryEnterAction, Action dialogueEnterAction, Action combatEnterAction)
+        public void AddEnterActionCallbacks(
+            Action inventoryEnterAction,
+            Action dialogueEnterAction,
+            Action combatEnterAction,
+            Action dropCollectEnterAction,
+            Action interactEnterAction)
         {
             InventoryEnterAction += inventoryEnterAction;
             DialogueEnterAction += dialogueEnterAction;
             CombatEnterAction += combatEnterAction;
+            InteractEnterAction += interactEnterAction;
+            DropCollectEnterAction += dropCollectEnterAction;
         }
 
-        public void AddExitActionCallbacks(Action inventoryExitAction, Action dialogueExitAction, Action combatExitAction)
+        public void AddExitActionCallbacks(
+            Action inventoryExitAction,
+            Action dialogueExitAction,
+            Action combatExitAction,
+            Action dropCollectExitAction,
+            Action interactExitAction)
         {
             InventoryExitAction += inventoryExitAction;
             DialogueExitAction += dialogueExitAction;
             CombatExitAction += combatExitAction;
+            InteractExitAction += interactExitAction;
+            DropCollectExitAction += dropCollectExitAction;
         }
 
-        public void RemoveEnterActionCallbacks(Action inventoryEnterAction, Action dialogueEnterAction, Action combatEnterAction)
+        public void RemoveAllActionCallbacks()
         {
-            InventoryEnterAction -= inventoryEnterAction;
-            DialogueEnterAction -= dialogueEnterAction;
-            CombatEnterAction -= combatEnterAction;
-        }
+            InventoryEnterAction = null;
+            DialogueEnterAction = null;
+            CombatEnterAction = null;
+            InteractEnterAction = null;
 
-        public void RemoveExitActionCallbacks(Action inventoryExitAction, Action dialogueExitAction, Action combatExitAction)
-        {
-            InventoryExitAction -= inventoryExitAction;
-            DialogueExitAction -= dialogueExitAction;
-            CombatExitAction -= combatExitAction;
+            InventoryExitAction = null;
+            DialogueExitAction = null;
+            CombatExitAction = null;
+            InteractExitAction = null;
         }
 
         public void SwitchState(GameState newState)
         {
             if (_currentState == newState)
             {
-                if (newState != GameState.Gameplay)
-                    SwitchState(GameState.Gameplay);
+                SwitchToPreviousState();
                 return;
             }
 
@@ -62,31 +84,51 @@ namespace ProjectEmbersteel.StateMachine
                 case GameState.Inventory:
                     InventoryEnterAction?.Invoke();
                     break;
+                case GameState.DropCollect:
+                    DropCollectEnterAction?.Invoke();
+                    break;
+                case GameState.Interact:
+                    InteractEnterAction?.Invoke();
+                    break;
                 case GameState.Dialogue:
-                    DialogueEnterAction?.Invoke();
+                    // DialogueEnterAction?.Invoke(); — uncomment if/when implemented
                     break;
                 case GameState.Combat:
-                    CombatEnterAction?.Invoke();
+                    // CombatEnterAction?.Invoke(); — uncomment if/when implemented
                     break;
             }
 
             _currentState = newState;
         }
 
-        public void ExitState(GameState state)
+        public void ExitState(GameState currentState)
         {
-            switch (state)
+            switch (currentState)
             {
                 case GameState.Inventory:
                     InventoryExitAction?.Invoke();
                     break;
+                case GameState.DropCollect:
+                    DropCollectExitAction?.Invoke();
+                    break;
+                case GameState.Interact:
+                    InteractExitAction?.Invoke();
+                    break;
                 case GameState.Dialogue:
-                    DialogueExitAction?.Invoke();
+                    // DialogueExitAction?.Invoke(); — uncomment if/when implemented
                     break;
                 case GameState.Combat:
-                    CombatExitAction?.Invoke();
+                    // CombatExitAction?.Invoke(); — uncomment if/when implemented
                     break;
             }
+
+            _previousState = currentState;
+        }
+
+        private void SwitchToPreviousState()
+        {
+            ExitState(_currentState);
+            EnterState(_previousState);
         }
     }
 }

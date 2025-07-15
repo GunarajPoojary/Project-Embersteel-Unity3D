@@ -1,5 +1,5 @@
 using System;
-using ProjectEmbersteel.Item;
+using ProjectEmbersteel.Equipment;
 using ProjectEmbersteel.StatSystem;
 using UnityEngine;
 
@@ -26,7 +26,7 @@ namespace ProjectEmbersteel.EquipmentSystem
             InitializeEquipmentSlots();
         }
 
-        // Equip a new wearable item, unequip the old one if necessary, and update the visuals
+        // Equip a new armor, unequip the old one if necessary, and update the visuals
         public void EquipArmor(ArmorSO newArmor)
         {
             int slotIndex = (int)newArmor.EquipSlot;
@@ -37,7 +37,7 @@ namespace ProjectEmbersteel.EquipmentSystem
             _equippedArmors[slotIndex] = newArmor;
         }
 
-        // Unequip a wearable item from a specific slot, destroy the associated mesh, and reset the default skin
+        // Unequip a armor from a specific slot, destroy the associated mesh, and reset the default skin
         public ArmorSO UnequipArmor(int slotIndex)
         {
             ArmorSO currentEquippedArmor = _equippedArmors[slotIndex];
@@ -76,7 +76,7 @@ namespace ProjectEmbersteel.EquipmentSystem
             return currentEquippedWeapon;
         }
 
-        // Unequip all wearable items and weapons, and reset the player to the default skins and animator controller
+        // Unequip all armors and weapons, and reset the player to the default skins and animator controller
         public void UnequipAll()
         {
             UnequipWeapon();

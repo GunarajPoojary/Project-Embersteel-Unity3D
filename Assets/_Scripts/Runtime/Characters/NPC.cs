@@ -7,8 +7,14 @@ namespace ProjectEmbersteel.Characters
 {
     public class NPC : MonoBehaviour, IInteractable
     {
-        [SerializeField] private DialogueDataSO _defaultDialogueDataSO;
-        [SerializeField] private DialogueEventChannelSO _startDialogueEvent;
+        [SerializeField] private DialogueSO _defaultDialogueDataSO;
+
+        [Header("Publisher")]
+        [SerializeField] private DialogueSOEventChannelSO _startDialogueEvent;
+
+        public InteractionType InteractionType => throw new System.NotImplementedException();
+
+        public bool Interactable { get; private set; } = true;
 
         public void Interact()
         {

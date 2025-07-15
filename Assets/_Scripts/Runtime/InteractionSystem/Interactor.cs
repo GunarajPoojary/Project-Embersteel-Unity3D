@@ -7,15 +7,21 @@ namespace ProjectEmbersteel.InteractionSystem
     public class Interactor : MonoBehaviour
     {
         [SerializeField] private LayerMask _interactableLayer;
-        
-        [Header("Broadcasting On")]
-        [SerializeField] private IInteractableEventChannelSO _OnTriggerInteractable;
 
-        private void OnTriggerEnter(Collider collider) => HandleInteraction(collider, true);
+        [Header("Publisher")]
+        [SerializeField] private IInteractableEventChannelSO _triggerInteractableEvent;
 
-        private void OnTriggerExit(Collider collider) => HandleInteraction(collider, false);
+        private BoxCollider _interactableCollider;
 
-        private void HandleInteraction(Collider collider, bool isEntering)
+        private void OnValidate()
+        {
+
+        }
+
+        private void OnTriggerEnter(Collider collider) => HandleTrigger(collider, true);
+        private void OnTriggerExit(Collider collider) => HandleTrigger(collider, false);
+
+        private void HandleTrigger(Collider collider, bool isEntering)
         {
             if (((1 << collider.gameObject.layer) & _interactableLayer) == 0)
                 return;
@@ -23,7 +29,7 @@ namespace ProjectEmbersteel.InteractionSystem
             if (!collider.TryGetComponent(out IInteractable interactable))
                 return;
 
-            _OnTriggerInteractable.RaiseEvent(isEntering, interactable);
+            _triggerInteractableEvent.RaiseEvent(interactable.Interactable && isEntering, interactable);
         }
     }
 }

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ProjectEmbersteel.Events.EventChannel;
-using ProjectEmbersteel.Item;
+using ProjectEmbersteel.Equipment;
 using ProjectEmbersteel.StatSystem;
 using UnityEngine;
 
@@ -16,14 +16,14 @@ namespace ProjectEmbersteel.EquipmentSystem
     public class PlayerEquipmentManager : MonoBehaviour
     {
         public static PlayerEquipmentManager Instance { get; private set; }
-        
-        [Header("Equipment Menu Components")]
-        [Tooltip("The view component that displays the Equipment Menu UI")]
-        [SerializeField] private RuntimeAnimatorController _defaultAnimator;
-        [SerializeField] private ItemSOEventChannelSO _equipEquipmentEventChannel;
-        [SerializeField] private ItemSOEventChannelSO _unequipEquipmentEventChannel;
 
+        [SerializeField] private RuntimeAnimatorController _defaultAnimator;
         [SerializeField] private EquipmentDatabase[] _equipmentDatabase;
+
+        [Header("Listeners")]
+        [SerializeField] private EquipmentSOEventChannelSO _equipEquipmentEvent;
+        [SerializeField] private EquipmentSOEventChannelSO _unequipEquipmentEvent;
+
         public PlayerEquipmentDatabase PlayerEquipmentDatabase { get; private set; }
 
         private PlayerEquipmentsController _controller;
@@ -33,7 +33,6 @@ namespace ProjectEmbersteel.EquipmentSystem
         private void Start() => InitializePlayerEquipmentsController();
 
         private void OnEnable() => SubscribeToEquipEquipmentEvent(true);
-
         private void OnDisable() => SubscribeToEquipEquipmentEvent(false);
 
         private void InitializePlayerEquipmentsController()
@@ -60,51 +59,47 @@ namespace ProjectEmbersteel.EquipmentSystem
         {
             if (subscribe)
             {
-                _equipEquipmentEventChannel.OnEventRaised += EquipEquipment;
-                _unequipEquipmentEventChannel.OnEventRaised += UnequipEquipment;
+                _equipEquipmentEvent.OnEventRaised += HandleEquipEquipment;
+                _unequipEquipmentEvent.OnEventRaised += HandleUnequipEquipment;
             }
             else
             {
-                _equipEquipmentEventChannel.OnEventRaised -= EquipEquipment;
-                _unequipEquipmentEventChannel.OnEventRaised -= UnequipEquipment;
+                _equipEquipmentEvent.OnEventRaised -= HandleEquipEquipment;
+                _unequipEquipmentEvent.OnEventRaised -= HandleUnequipEquipment;
             }
         }
 
-        private void EquipEquipment(ItemSO equipment)
+        private void HandleEquipEquipment(EquipmentSO equipment)
         {
             switch (equipment.Type)
             {
-                case ItemType.OneHandedSword:
-                case ItemType.GreatSword:
-                case ItemType.BowAndArrow:
+                case EquipmentType.Weapon:
                     _controller.EquipWeapon(equipment as WeaponSO);
                     break;
-                case ItemType.HeadArmor:
-                case ItemType.ChestArmor:
-                case ItemType.ArmArmor:
-                case ItemType.BeltArmor:
-                case ItemType.LegArmor:
-                case ItemType.FeetArmor:
+                case EquipmentType.HeadArmor:
+                case EquipmentType.ChestArmor:
+                case EquipmentType.ArmArmor:
+                case EquipmentType.BeltArmor:
+                case EquipmentType.LegArmor:
+                case EquipmentType.FeetArmor:
                     _controller.EquipArmor(equipment as ArmorSO);
                     break;
             }
         }
 
-        private void UnequipEquipment(ItemSO equipment)
+        private void HandleUnequipEquipment(EquipmentSO equipment)
         {
             switch (equipment.Type)
             {
-                case ItemType.OneHandedSword:
-                case ItemType.GreatSword:
-                case ItemType.BowAndArrow:
+                case EquipmentType.Weapon:
                     _controller.UnequipWeapon();
                     break;
-                case ItemType.HeadArmor:
-                case ItemType.ChestArmor:
-                case ItemType.ArmArmor:
-                case ItemType.BeltArmor:
-                case ItemType.LegArmor:
-                case ItemType.FeetArmor:
+                case EquipmentType.HeadArmor:
+                case EquipmentType.ChestArmor:
+                case EquipmentType.ArmArmor:
+                case EquipmentType.BeltArmor:
+                case EquipmentType.LegArmor:
+                case EquipmentType.FeetArmor:
                     ArmorSO armor = equipment as ArmorSO;
                     _controller.UnequipArmor((int)armor.EquipSlot);
                     break;

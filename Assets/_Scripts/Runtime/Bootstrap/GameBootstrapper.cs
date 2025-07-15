@@ -17,8 +17,8 @@ namespace ProjectEmbersteel.Bootstrap
 		[SerializeField] private GameSceneSO _persistentManagersScene = default;
 		[SerializeField] private GameSceneSO _mainMenuScene = default;
 
-		[Header("Broadcasting on")]
-		[SerializeField] private AssetReference _menuLoadChannel = default;
+		[Header("Publisher")]
+		[SerializeField] private AssetReference _mainMenuSceneLoadEvent = default;
 		private const int BOOTSTRAPPER_SCENE_INDEX = 0;
 
         private void Start() => LoadPersistentManagers();
@@ -28,7 +28,7 @@ namespace ProjectEmbersteel.Bootstrap
             true).Completed += LoadEventChannel;
 
         // Now the persistent Managers scene is active, let's load the event channel from addressable
-        private void LoadEventChannel(AsyncOperationHandle<SceneInstance> obj) => _menuLoadChannel.LoadAssetAsync<LoadSceneEventChannelSO>().Completed += LoadMainMenu;
+        private void LoadEventChannel(AsyncOperationHandle<SceneInstance> obj) => _mainMenuSceneLoadEvent.LoadAssetAsync<LoadSceneEventChannelSO>().Completed += LoadMainMenu;
 
         // Once the eventchannel has been loaded from addressable raise the event which will be listened by SceneLoader
         private void LoadMainMenu(AsyncOperationHandle<LoadSceneEventChannelSO> eventChannel)

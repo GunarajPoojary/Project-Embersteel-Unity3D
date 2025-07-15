@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/GameBootstrapper.unity
+    path: Assets/_Scenes/GameBootstrapper.unity
     guid: e098555dc5a59cb47aa7f6a2ab3d82d9
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 50a15f4854b2a7e41b55ca5e5f7a2b7b, type: 2}

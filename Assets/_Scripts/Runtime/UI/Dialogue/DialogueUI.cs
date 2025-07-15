@@ -16,13 +16,13 @@ namespace ProjectEmbersteel.DialogueSystem.UI
         [SerializeField] private Button _nextButton;
         [SerializeField] private Button _closeDialogueButton;
 
-        [Header("Listening on")]
-        [SerializeField] private DialogueEventChannelSO _startDialogueEventChannel;
+        [Header("Listener")]
+        [SerializeField] private DialogueSOEventChannelSO _startDialogueEventChannel;
 
-        [Header("Broadcasting on")]
+		[Header("Publisher")]
         [SerializeField] private VoidEventChannelSO _endDialogueEventChannel;
 
-        private DialogueDataSO _currentDialogue;
+        private DialogueSO _currentDialogue;
         private int _currentLineIndex = 0;
         private bool _isDialogueActive = false;
 
@@ -52,7 +52,7 @@ namespace ProjectEmbersteel.DialogueSystem.UI
             }
         }
 
-        private void StartDialogue(DialogueDataSO dialogue)
+        private void StartDialogue(DialogueSO dialogue)
         {
             if (dialogue == null || dialogue.Lines.Count == 0)
                 return;

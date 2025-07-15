@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using ProjectEmbersteel.Item;
+using ProjectEmbersteel.Equipment;
 using UnityEngine;
 
 namespace ProjectEmbersteel.EquipmentSystem

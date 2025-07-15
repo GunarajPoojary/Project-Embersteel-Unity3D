@@ -14,9 +14,13 @@ namespace ProjectEmbersteel.SceneManagement
     public class SceneLoader : MonoBehaviour
     {
         [SerializeField] private GameSceneSO _gameplayScene = default;
-        [SerializeField] private LoadSceneEventChannelSO _loadLocationChannel = default;
-        [SerializeField] private LoadSceneEventChannelSO _loadMenuChannel = default;
-        [SerializeField] private SceneLoadProgressEventChannelSO _loadingScreen = default;
+
+        [Header("Publisher")]
+        [SerializeField] private SceneLoadProgressEventChannelSO _sceneLoadingProgressEvent = default;
+
+        [Header("Listeners")]
+        [SerializeField] private LoadSceneEventChannelSO _loadLocationEvent = default;
+        [SerializeField] private LoadSceneEventChannelSO _loadMainMenuSceneEvent = default;
 
         private bool _isLoading = false;
         private GameSceneSO _sceneToLoad;
@@ -27,20 +31,19 @@ namespace ProjectEmbersteel.SceneManagement
         private AsyncOperationHandle<SceneInstance> _gameplayManagerLoadingOpHandle;
 
         private void OnEnable() => SubscribeToEventChannels(true);
-
         private void OnDisable() => SubscribeToEventChannels(false);
 
         private void SubscribeToEventChannels(bool subscribe)
         {
             if (subscribe)
             {
-                _loadMenuChannel.OnLoadingRequested += LoadMenu;
-                _loadLocationChannel.OnLoadingRequested += LoadLocation;
+                _loadMainMenuSceneEvent.OnLoadingRequested += LoadMainMenu;
+                _loadLocationEvent.OnLoadingRequested += LoadLocation;
             }
             else
             {
-                _loadMenuChannel.OnLoadingRequested -= LoadMenu;
-                _loadLocationChannel.OnLoadingRequested -= LoadLocation;
+                _loadMainMenuSceneEvent.OnLoadingRequested -= LoadMainMenu;
+                _loadLocationEvent.OnLoadingRequested -= LoadLocation;
             }
         }
 
@@ -101,7 +104,7 @@ namespace ProjectEmbersteel.SceneManagement
         /// <summary>
         /// Loads the menu scene and handles cleanup of persistent gameplay manager if needed.
         /// </summary>
-        private void LoadMenu(GameSceneSO menuToLoad, bool showLoadingScreen, bool fadeScreen)
+        private void LoadMainMenu(GameSceneSO menuToLoad, bool showLoadingScreen, bool fadeScreen)
         {
             // Prevent double-loading
             if (_isLoading)
@@ -129,7 +132,7 @@ namespace ProjectEmbersteel.SceneManagement
 
             // Raise event to show loading UI and pass loading progress handle
             if (_showLoadingScreen)
-                _loadingScreen.RaiseEvent(true, _loadingOperationHandle);
+                _sceneLoadingProgressEvent.RaiseEvent(true, _loadingOperationHandle);
 
             // Register callback when loading completes
             _loadingOperationHandle.Completed += OnNewSceneLoaded;
@@ -145,7 +148,7 @@ namespace ProjectEmbersteel.SceneManagement
 
             // Raise event to hide loading screen
             if (_showLoadingScreen)
-                _loadingScreen.RaiseEvent(false, handle);
+                _sceneLoadingProgressEvent.RaiseEvent(false, handle);
         }
     }
 }

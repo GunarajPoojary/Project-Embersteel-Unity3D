@@ -1,5 +1,3 @@
-using System;
-using ProjectEmbersteel.Events.EventChannel;
 using ProjectEmbersteel.StatSystem;
 using TMPro;
 using UnityEngine;
@@ -12,7 +10,7 @@ namespace ProjectEmbersteel.UI.Inventory
         [SerializeField] private TMP_Text _aTKText;
         [SerializeField] private TMP_Text _dEFText;
 
-        public void OnUpdateBaseStats(StatType type, Stat stat)
+        public void UpdateBaseStats(StatType type, Stat stat)
         {
             switch (type)
             {

@@ -1,74 +1,47 @@
 using ProjectEmbersteel.Events.EventChannel;
-using ProjectEmbersteel.Loot;
-using ProjectEmbersteel.UI.Inventory;
-using ProjectEmbersteel.Utilities.Inputs.ScriptableObjects;
+using ProjectEmbersteel.Equipment;
 using UnityEngine;
+using ProjectEmbersteel.Utilities.Inputs.ScriptableObjects;
 
 namespace ProjectEmbersteel.Inventory
 {
     public class InventoryManager : MonoBehaviour
     {
-        [Header("Inventory Components")]
-        [Tooltip("The view component that displays the inventory UI")]
-        [SerializeField] private UIInventory _view;
-        [SerializeField] private InputReader _input;
-        [SerializeField] private IPickableEventChannelSO _onItemPickedEventChannel = default;
+        [SerializeField] private InputReader _inputReader;
+        [SerializeField] public Inventory _inventory;
+        
+        [Header("Listener")]
+        [SerializeField] private EquipmentSOEventChannelSO _addEquipmentToInventoryEvent;
 
-        [field: SerializeField] public Inventory Model { get; private set; }
-        private IPickable _pickable = null;
+        [Header("Publishers")]
+        [SerializeField] private EquipmentSOEventChannelSO _addEquipmentToInvetorySuccessEvent;
+        [SerializeField] private VoidEventChannelSO _toggleInventoryMenuEvent;
+
         private InventoryController _controller;
 
         private void Awake() => CreateInventoryController();
 
-        private void OnEnable()
+        private void OnEnable() => SubscribeToControllerEvents();
+        private void OnDisable() => UnsubscribeToControllerEvents();
+
+        private void AddEquipment(EquipmentSO equipment)
         {
-            AddControllerListeners();
-            SubscribeToControllerEvents();
+            if (_controller.TryAddEquipment(equipment))
+                _addEquipmentToInvetorySuccessEvent.RaiseEvent(equipment);
         }
 
-        private void OnDisable()
-        {
-            RemoveControllerListeners();
-            UnsubscribeToControllerEvents();
-        }
-
-        public void OnItemPickupSuccess()
-        {
-            _pickable?.SetGameObject(false);
-
-            ResetState();
-        }
-
-        public void ToggleInventory(bool toggle) => _controller.ToggleInventory(toggle);
-
-        private void TryAddItem(IPickable pickable)
-        {
-            _pickable = pickable;
-
-            _controller.AddItem(pickable.PickUpItem());
-        }
-
-        private void CreateInventoryController() => _controller = new InventoryController(_input, Model, _view);
-
-        private void AddControllerListeners() => _controller.AddListeners();
-        private void RemoveControllerListeners() => _controller.RemoveListeners();
+        private void CreateInventoryController() => _controller = new InventoryController(_inventory, _inputReader, _toggleInventoryMenuEvent);
 
         private void SubscribeToControllerEvents()
         {
-            _controller.OnItemAdded += OnItemPickupSuccess;
-            _controller.OnItemAddFail += ResetState;
-            _onItemPickedEventChannel.OnEventRaised += TryAddItem;
+            _controller.AddListener();
+            _addEquipmentToInventoryEvent.OnEventRaised += AddEquipment;
         }
 
         private void UnsubscribeToControllerEvents()
         {
-            _controller.OnItemAdded -= OnItemPickupSuccess;
-            _controller.OnItemAddFail -= ResetState;
-            _onItemPickedEventChannel.OnEventRaised -= TryAddItem;
+            _controller.RemoveListener();
+            _addEquipmentToInventoryEvent.OnEventRaised -= AddEquipment;
         }
-
-        private void ResetState() => _pickable = null;
-
-        private void RemoveItem(string itemName) => _controller.RemoveItem(itemName);
     }
 }

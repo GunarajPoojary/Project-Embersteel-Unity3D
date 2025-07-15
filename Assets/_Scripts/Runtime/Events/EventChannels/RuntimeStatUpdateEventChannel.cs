@@ -4,7 +4,7 @@ using UnityEngine.Events;
 
 namespace ProjectEmbersteel.Events.EventChannel
 {
-    [CreateAssetMenu(fileName = "RuntimeStatUpdateEventChannel", menuName = "Custom/Events/Runtime Stat Update Event Channel")]
+    [CreateAssetMenu(fileName = "RuntimeStatUpdateEvent", menuName = "Custom/Events/Runtime Stat Update Event Channel")]
     public class RuntimeStatUpdateEventChannel : DescriptionBaseSO
     {
         public event UnityAction<StatType, float, float> OnEventRaised;

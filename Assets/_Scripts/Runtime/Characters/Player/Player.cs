@@ -13,9 +13,10 @@ namespace ProjectEmbersteel.Player
     {
         [SerializeField] private CharacterReadonlyBaseStatsSO _baseStatsSO;
 
-        [Header("Broadcasting On")]
-        [SerializeField] private StatUpdateEventChannelSO _statUpdateEventChannel;
-        [SerializeField] private RuntimeStatUpdateEventChannel _runtimeStatUpdateEventChannel;
+		[Header("Publisher")]
+        [SerializeField] private StatEventChannelSO _statUpdateEvent;
+        [SerializeField] private RuntimeStatUpdateEventChannel _runtimeStatUpdateEvent;
+        
         private PlayerStats _playerStats;
         public IStatModifiable StatModifiable { get => _playerStats; }
 
@@ -31,8 +32,8 @@ namespace ProjectEmbersteel.Player
 
         public void TakeDamage(float damage) => _playerStats.HandleDamage(damage);
 
-        private void InitializeStats() => _playerStats = new PlayerStats(_baseStatsSO, HandleStatChanged, HandleRuntimeStatChanged);
-        private void HandleStatChanged(StatType statType, Stat stat) => _statUpdateEventChannel.RaiseEvent(statType, stat);
-        private void HandleRuntimeStatChanged(StatType statType, float currentValue, float maxValue) => _runtimeStatUpdateEventChannel?.RaiseEvent(statType, currentValue, maxValue);
+        private void InitializeStats() => _playerStats = new PlayerStats(_baseStatsSO, HandleStatUpdate, HandleRuntimeStatUpdate);
+        private void HandleStatUpdate(StatType statType, Stat stat) => _statUpdateEvent.RaiseEvent(statType, stat);
+        private void HandleRuntimeStatUpdate(StatType statType, float currentValue, float maxValue) => _runtimeStatUpdateEvent?.RaiseEvent(statType, currentValue, maxValue);
     }
 }
