@@ -5,27 +5,27 @@ using System.Collections.Generic;
 using System.IO;
 
 /// <summary>
-/// Editor tool for consolidating multiple UI elements into a single optimized sprite and GameObject
+/// Editor tool for Baking multiple UI elements into a single optimized sprite and GameObject
 /// Enhanced with pixel-perfect dimension calculation based on actual UI element bounds
 /// </summary>
 public class UIBaker : EditorWindow
 {
-    private GameObject targetUIParent;
-    private string outputPath = "Assets/Generated/ConsolidatedUI/";
-    private string assetName = "ConsolidatedUI";
-    private int textureWidth = 2048;
-    private int textureHeight = 2048;
-    private bool includeInactiveElements = false;
-    private bool preserveOriginalHierarchy = true;
-    private bool useNativeResolution = false;
+    private GameObject _targetUI;
+    private string _savePath = "Assets/Generated/BakedUI/";
+    private string _fileName = "BakedSprite";
+    private int _textureWidth = 2048;
+    private int _textureHeight = 2048;
+    private bool _includeInactiveElements = false;
+    private bool _preserveOriginalHierarchy = true;
+    private bool _useNativeResolution = false;
 
-    private Vector2 scrollPosition;
-    private Vector2 elementListScrollPosition;
-    private List<UIElementData> detectedElements = new List<UIElementData>();
-    private bool showPreview = true;
-    private Texture2D previewTexture;
-    private Rect originalCanvasBounds;
-    private Vector2 calculatedPixelDimensions; // Store calculated pixel dimensions
+    private Vector2 _scrollPosition;
+    private Vector2 _elementListScrollPosition;
+    private readonly List<UIElementData> _detectedElements = new();
+    private bool _showPreview = true;
+    private Texture2D _previewTexture;
+    private Rect _originalCanvasBounds;
+    private Vector2 _calculatedPixelDimensions;
 
     [System.Serializable]
     private class UIElementData
@@ -33,7 +33,7 @@ public class UIBaker : EditorWindow
         public GameObject gameObject;
         public Component component;
         public Rect screenRect;
-        public bool includeInConsolidation = true;
+        public bool includeInBaker = true;
         public UIElementType elementType;
 
         public enum UIElementType
@@ -56,9 +56,8 @@ public class UIBaker : EditorWindow
 
     private void OnGUI()
     {
-        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+        _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
 
-        EditorGUILayout.LabelField("UI Consolidation Tool", EditorStyles.boldLabel);
         EditorGUILayout.Space();
 
         DrawConfigurationSection();
@@ -73,7 +72,7 @@ public class UIBaker : EditorWindow
         DrawPreviewSection();
         EditorGUILayout.Space();
 
-        DrawConsolidationSection();
+        DrawBakerSection();
 
         EditorGUILayout.EndScrollView();
     }
@@ -91,30 +90,44 @@ public class UIBaker : EditorWindow
     {
         EditorGUILayout.LabelField("Configuration", EditorStyles.boldLabel);
 
-        targetUIParent = (GameObject)EditorGUILayout.ObjectField(
-            "Target UI Parent", targetUIParent, typeof(GameObject), true);
-
-        outputPath = EditorGUILayout.TextField("Output Path", outputPath);
-        assetName = EditorGUILayout.TextField("Asset Name", assetName);
+        _targetUI = (GameObject)EditorGUILayout.ObjectField(
+            "Target UI", _targetUI, typeof(GameObject), true);
 
         EditorGUILayout.BeginHorizontal();
-        textureWidth = EditorGUILayout.IntField("Texture Width", textureWidth, GUILayout.MinWidth(100));
-        textureHeight = EditorGUILayout.IntField("Texture Height", textureHeight, GUILayout.MinWidth(100));
+        EditorGUILayout.LabelField("Save Path", GUILayout.Width(EditorGUIUtility.labelWidth));
+        _savePath = EditorPrefs.GetString("UIBakerSavePath", _savePath);
+        _savePath = EditorGUILayout.TextField(_savePath);
+        if (GUILayout.Button("Browse", GUILayout.Width(60)))
+        {
+            string selectedPath = EditorUtility.OpenFolderPanel("Select Save Directory", _savePath, "");
+            if (!string.IsNullOrEmpty(selectedPath))
+            {
+                _savePath = "Assets" + selectedPath[Application.dataPath.Length..];
+                EditorPrefs.SetString("UIBakerSavePath", _savePath);
+            }
+        }
         EditorGUILayout.EndHorizontal();
 
-        useNativeResolution = EditorGUILayout.Toggle("Use Pixel-Perfect Dimensions", useNativeResolution);
-        if (useNativeResolution)
+        _fileName = EditorGUILayout.TextField("Asset Name", _fileName);
+
+        EditorGUILayout.BeginHorizontal();
+        _textureWidth = EditorGUILayout.IntField("Texture Width", _textureWidth, GUILayout.MinWidth(100));
+        _textureHeight = EditorGUILayout.IntField("Texture Height", _textureHeight, GUILayout.MinWidth(100));
+        EditorGUILayout.EndHorizontal();
+
+        _useNativeResolution = EditorGUILayout.Toggle("Use Pixel-Perfect Dimensions", _useNativeResolution);
+        if (_useNativeResolution)
         {
             EditorGUILayout.HelpBox("Pixel-perfect mode calculates texture dimensions based on actual UI element pixel bounds for precise scaling.", MessageType.Info);
 
-            if (calculatedPixelDimensions.x > 0 && calculatedPixelDimensions.y > 0)
+            if (_calculatedPixelDimensions.x > 0 && _calculatedPixelDimensions.y > 0)
             {
-                EditorGUILayout.LabelField($"Calculated Dimensions: {calculatedPixelDimensions.x:F0} x {calculatedPixelDimensions.y:F0} pixels");
+                EditorGUILayout.LabelField($"Calculated Dimensions: {_calculatedPixelDimensions.x:F0} x {_calculatedPixelDimensions.y:F0} pixels");
             }
         }
 
-        includeInactiveElements = EditorGUILayout.Toggle("Include Inactive Elements", includeInactiveElements);
-        preserveOriginalHierarchy = EditorGUILayout.Toggle("Preserve Original Hierarchy", preserveOriginalHierarchy);
+        _includeInactiveElements = EditorGUILayout.Toggle("Include Inactive Elements", _includeInactiveElements);
+        _preserveOriginalHierarchy = EditorGUILayout.Toggle("Preserve Original Hierarchy", _preserveOriginalHierarchy);
     }
 
     private void DrawDetectionSection()
@@ -129,33 +142,33 @@ public class UIBaker : EditorWindow
 
         if (GUILayout.Button("Clear List", GUILayout.MinWidth(80), GUILayout.ExpandWidth(true)))
         {
-            detectedElements.Clear();
+            _detectedElements.Clear();
             ClearPreview();
-            calculatedPixelDimensions = Vector2.zero;
+            _calculatedPixelDimensions = Vector2.zero;
         }
         EditorGUILayout.EndHorizontal();
 
-        if (detectedElements.Count > 0)
+        if (_detectedElements.Count > 0)
         {
-            EditorGUILayout.LabelField($"Detected {detectedElements.Count} UI elements");
+            EditorGUILayout.LabelField($"Detected {_detectedElements.Count} UI elements");
         }
     }
 
     private void DrawElementListSection()
     {
-        if (detectedElements.Count == 0) return;
+        if (_detectedElements.Count == 0) return;
 
         EditorGUILayout.LabelField("Detected Elements", EditorStyles.boldLabel);
 
-        elementListScrollPosition = EditorGUILayout.BeginScrollView(elementListScrollPosition, GUILayout.Height(120));
+        _elementListScrollPosition = EditorGUILayout.BeginScrollView(_elementListScrollPosition, GUILayout.Height(120));
 
-        for (int i = 0; i < detectedElements.Count; i++)
+        for (int i = 0; i < _detectedElements.Count; i++)
         {
-            UIElementData element = detectedElements[i];
+            UIElementData element = _detectedElements[i];
 
             EditorGUILayout.BeginHorizontal();
 
-            element.includeInConsolidation = EditorGUILayout.Toggle(element.includeInConsolidation, GUILayout.Width(20));
+            element.includeInBaker = EditorGUILayout.Toggle(element.includeInBaker, GUILayout.Width(20));
 
             EditorGUI.BeginDisabledGroup(true);
             EditorGUILayout.ObjectField(element.gameObject, typeof(GameObject), true, GUILayout.MinWidth(100), GUILayout.ExpandWidth(true));
@@ -172,14 +185,14 @@ public class UIBaker : EditorWindow
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("Select All"))
         {
-            foreach (UIElementData element in detectedElements)
-                element.includeInConsolidation = true;
+            foreach (UIElementData element in _detectedElements)
+                element.includeInBaker = true;
         }
 
         if (GUILayout.Button("Select None"))
         {
-            foreach (UIElementData element in detectedElements)
-                element.includeInConsolidation = false;
+            foreach (UIElementData element in _detectedElements)
+                element.includeInBaker = false;
         }
         EditorGUILayout.EndHorizontal();
     }
@@ -188,12 +201,12 @@ public class UIBaker : EditorWindow
     {
         EditorGUILayout.LabelField("Preview", EditorStyles.boldLabel);
 
-        showPreview = EditorGUILayout.Toggle("Show Preview", showPreview);
+        _showPreview = EditorGUILayout.Toggle("Show Preview", _showPreview);
 
         EditorGUILayout.BeginHorizontal();
-        if (previewTexture != null && showPreview)
+        if (_previewTexture != null && _showPreview)
         {
-            float aspectRatio = (float)previewTexture.width / previewTexture.height;
+            float aspectRatio = (float)_previewTexture.width / _previewTexture.height;
             float availableWidth = EditorGUIUtility.currentViewWidth - 40;
             float maxPreviewWidth = Mathf.Min(400, availableWidth);
             float previewWidth = Mathf.Max(200, maxPreviewWidth);
@@ -212,13 +225,13 @@ public class UIBaker : EditorWindow
                 previewRect.width = previewWidth;
             }
 
-            EditorGUI.DrawPreviewTexture(previewRect, previewTexture);
+            EditorGUI.DrawPreviewTexture(previewRect, _previewTexture);
         }
         EditorGUILayout.EndHorizontal();
 
-        if (previewTexture != null && showPreview)
+        if (_previewTexture != null && _showPreview)
         {
-            float aspectRatio = (float)previewTexture.width / previewTexture.height;
+            float aspectRatio = (float)_previewTexture.width / _previewTexture.height;
             float previewWidth = Mathf.Min(300, EditorGUIUtility.currentViewWidth - 60);
             float previewHeight = previewWidth / aspectRatio;
 
@@ -226,28 +239,26 @@ public class UIBaker : EditorWindow
             EditorGUILayout.LabelField("Preview Texture:", EditorStyles.boldLabel);
 
             Rect previewRect = EditorGUILayout.GetControlRect(false, previewHeight);
-            EditorGUI.DrawPreviewTexture(previewRect, previewTexture);
+            EditorGUI.DrawPreviewTexture(previewRect, _previewTexture);
         }
     }
 
-    private void DrawConsolidationSection()
+    private void DrawBakerSection()
     {
-        EditorGUILayout.LabelField("Consolidation", EditorStyles.boldLabel);
+        EditorGUI.BeginDisabledGroup(_detectedElements.Count == 0 || _targetUI == null);
 
-        EditorGUI.BeginDisabledGroup(detectedElements.Count == 0 || targetUIParent == null);
-
-        if (GUILayout.Button("Consolidate UI Elements", GUILayout.Height(30)))
+        if (GUILayout.Button("Bake UI Elements", GUILayout.Height(30)))
         {
-            ConsolidateUIElements();
+            BakerUIElements();
         }
 
         EditorGUI.EndDisabledGroup();
 
-        if (targetUIParent == null)
+        if (_targetUI == null)
         {
-            EditorGUILayout.HelpBox("Please assign a Target UI Parent to proceed with consolidation.", MessageType.Warning);
+            EditorGUILayout.HelpBox("Please assign a Target UI to proceed with Baker.", MessageType.Warning);
         }
-        else if (detectedElements.Count == 0)
+        else if (_detectedElements.Count == 0)
         {
             EditorGUILayout.HelpBox("Please scan for UI elements first.", MessageType.Warning);
         }
@@ -255,15 +266,15 @@ public class UIBaker : EditorWindow
 
     private void ScanUIElements()
     {
-        if (targetUIParent == null)
+        if (_targetUI == null)
         {
-            EditorUtility.DisplayDialog("Error", "Please assign a Target UI Parent first.", "OK");
+            EditorUtility.DisplayDialog("Error", "Please assign a Target UI first.", "OK");
             return;
         }
 
-        detectedElements.Clear();
+        _detectedElements.Clear();
 
-        Component[] components = targetUIParent.GetComponentsInChildren<Component>(includeInactiveElements);
+        Component[] components = _targetUI.GetComponentsInChildren<Component>(_includeInactiveElements);
         foreach (Component comp in components)
         {
             if (comp == null || comp.gameObject == null)
@@ -274,7 +285,7 @@ public class UIBaker : EditorWindow
                 UIElementData elementData = CreateElementData(comp);
                 if (elementData != null)
                 {
-                    detectedElements.Add(elementData);
+                    _detectedElements.Add(elementData);
                 }
             }
         }
@@ -282,10 +293,10 @@ public class UIBaker : EditorWindow
         // Calculate pixel dimensions after scanning
         CalculatePixelDimensions();
 
-        Debug.Log($"Scanned and found {detectedElements.Count} UI elements.");
-        if (useNativeResolution)
+        Debug.Log($"Scanned and found {_detectedElements.Count} UI elements.");
+        if (_useNativeResolution)
         {
-            Debug.Log($"Calculated pixel dimensions: {calculatedPixelDimensions.x} x {calculatedPixelDimensions.y}");
+            Debug.Log($"Calculated pixel dimensions: {_calculatedPixelDimensions.x} x {_calculatedPixelDimensions.y}");
         }
     }
 
@@ -333,16 +344,16 @@ public class UIBaker : EditorWindow
     /// </summary>
     private void CalculatePixelDimensions()
     {
-        if (detectedElements.Count == 0)
+        if (_detectedElements.Count == 0)
         {
-            calculatedPixelDimensions = Vector2.zero;
+            _calculatedPixelDimensions = Vector2.zero;
             return;
         }
 
-        Canvas canvas = targetUIParent.GetComponentInParent<Canvas>();
+        Canvas canvas = _targetUI.GetComponentInParent<Canvas>();
         if (canvas == null)
         {
-            calculatedPixelDimensions = Vector2.zero;
+            _calculatedPixelDimensions = Vector2.zero;
             return;
         }
 
@@ -351,7 +362,7 @@ public class UIBaker : EditorWindow
 
         if (contentBounds.width <= 0 || contentBounds.height <= 0)
         {
-            calculatedPixelDimensions = Vector2.zero;
+            _calculatedPixelDimensions = Vector2.zero;
             return;
         }
 
@@ -364,12 +375,12 @@ public class UIBaker : EditorWindow
         float pixelHeight = contentBounds.height * scaleFactor;
 
         // Round to nearest integer pixels and ensure minimum size
-        calculatedPixelDimensions = new Vector2(
+        _calculatedPixelDimensions = new Vector2(
             Mathf.Max(1, Mathf.RoundToInt(pixelWidth)),
             Mathf.Max(1, Mathf.RoundToInt(pixelHeight))
         );
 
-        Debug.Log($"Content bounds: {contentBounds}, Scale factor: {scaleFactor}, Final pixel dimensions: {calculatedPixelDimensions}");
+        Debug.Log($"Content bounds: {contentBounds}, Scale factor: {scaleFactor}, Final pixel dimensions: {_calculatedPixelDimensions}");
     }
 
     /// <summary>
@@ -383,12 +394,12 @@ public class UIBaker : EditorWindow
         float maxY = float.MinValue;
 
         bool boundsFound = false;
-        Canvas canvas = targetUIParent.GetComponentInParent<Canvas>();
+        Canvas canvas = _targetUI.GetComponentInParent<Canvas>();
         RectTransform canvasRect = canvas.GetComponent<RectTransform>();
 
-        foreach (UIElementData element in detectedElements)
+        foreach (UIElementData element in _detectedElements)
         {
-            if (element.includeInConsolidation && element.gameObject.activeInHierarchy)
+            if (element.includeInBaker && element.gameObject.activeInHierarchy)
             {
                 RectTransform rectTransform = element.gameObject.GetComponent<RectTransform>();
                 if (rectTransform != null)
@@ -479,10 +490,10 @@ public class UIBaker : EditorWindow
 
     private void GeneratePreview()
     {
-        if (detectedElements.Count == 0) return;
+        if (_detectedElements.Count == 0) return;
 
         ClearPreview();
-        previewTexture = GenerateConsolidatedTexture();
+        _previewTexture = GenerateBakedTexture();
         Repaint();
     }
 
@@ -498,12 +509,12 @@ public class UIBaker : EditorWindow
 
         bool boundsFound = false;
 
-        Canvas canvas = targetUIParent.GetComponentInParent<Canvas>();
+        Canvas canvas = _targetUI.GetComponentInParent<Canvas>();
         RectTransform canvasRect = canvas.GetComponent<RectTransform>();
 
-        foreach (UIElementData element in detectedElements)
+        foreach (UIElementData element in _detectedElements)
         {
-            if (element.includeInConsolidation && element.gameObject.activeInHierarchy)
+            if (element.includeInBaker && element.gameObject.activeInHierarchy)
             {
                 RectTransform rectTransform = element.gameObject.GetComponent<RectTransform>();
                 if (rectTransform != null)
@@ -546,7 +557,7 @@ public class UIBaker : EditorWindow
             (maxY - minY) + (padding * 2)
         );
 
-        originalCanvasBounds = bounds;
+        _originalCanvasBounds = bounds;
         return bounds;
     }
 
@@ -555,15 +566,15 @@ public class UIBaker : EditorWindow
     /// </summary>
     private void PrepareUIElementsForCapture()
     {
-        Canvas canvas = targetUIParent.GetComponentInParent<Canvas>();
+        Canvas canvas = _targetUI.GetComponentInParent<Canvas>();
         if (canvas == null) return;
 
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         Canvas.ForceUpdateCanvases();
 
-        foreach (UIElementData element in detectedElements)
+        foreach (UIElementData element in _detectedElements)
         {
-            if (element.includeInConsolidation)
+            if (element.includeInBaker)
             {
                 element.gameObject.SetActive(true);
                 // Note: We no longer force alpha to 1.0f - preserve original alpha values
@@ -578,11 +589,11 @@ public class UIBaker : EditorWindow
     }
 
     /// <summary>
-    /// Generate consolidated texture using pixel-perfect dimensions
+    /// Generate Baked texture using pixel-perfect dimensions
     /// </summary>
-    private Texture2D GenerateConsolidatedTexture()
+    private Texture2D GenerateBakedTexture()
     {
-        Canvas canvas = targetUIParent.GetComponentInParent<Canvas>();
+        Canvas canvas = _targetUI.GetComponentInParent<Canvas>();
         if (canvas == null)
         {
             Debug.LogError("No Canvas found in parent hierarchy!");
@@ -598,7 +609,7 @@ public class UIBaker : EditorWindow
         Dictionary<GameObject, bool> originalActiveStates = new Dictionary<GameObject, bool>();
         // Remove the originalColors dictionary since we're no longer modifying colors
 
-        foreach (UIElementData element in detectedElements)
+        foreach (UIElementData element in _detectedElements)
         {
             originalActiveStates[element.gameObject] = element.gameObject.activeSelf;
             // Remove the color storage logic
@@ -612,15 +623,15 @@ public class UIBaker : EditorWindow
 
             // Use pixel-perfect dimensions if enabled, otherwise use specified dimensions
             int renderWidth, renderHeight;
-            if (useNativeResolution && calculatedPixelDimensions.x > 0 && calculatedPixelDimensions.y > 0)
+            if (_useNativeResolution && _calculatedPixelDimensions.x > 0 && _calculatedPixelDimensions.y > 0)
             {
-                renderWidth = (int)calculatedPixelDimensions.x;
-                renderHeight = (int)calculatedPixelDimensions.y;
+                renderWidth = (int)_calculatedPixelDimensions.x;
+                renderHeight = (int)_calculatedPixelDimensions.y;
             }
             else
             {
-                renderWidth = textureWidth;
-                renderHeight = textureHeight;
+                renderWidth = _textureWidth;
+                renderHeight = _textureHeight;
             }
 
             RenderTexture renderTexture = new RenderTexture(renderWidth, renderHeight, 24, RenderTextureFormat.ARGB32);
@@ -685,10 +696,10 @@ public class UIBaker : EditorWindow
             rawTexture.Apply();
 
             // Crop texture to actual content bounds for pixel-perfect dimensions
-            Texture2D consolidatedTexture = CropTextureToContent(rawTexture);
+            Texture2D bakedTexture = CropTextureToContent(rawTexture);
 
             // Clean up the raw texture
-            if (rawTexture != consolidatedTexture)
+            if (rawTexture != bakedTexture)
             {
                 DestroyImmediate(rawTexture);
             }
@@ -698,12 +709,12 @@ public class UIBaker : EditorWindow
             DestroyImmediate(tempCameraObj);
             renderTexture.Release();
 
-            SaveTextureAsset(consolidatedTexture);
+            SaveTextureAsset(bakedTexture);
 
             ClearPreview();
-            previewTexture = consolidatedTexture;
+            _previewTexture = bakedTexture;
 
-            return consolidatedTexture;
+            return bakedTexture;
         }
         catch (System.Exception ex)
         {
@@ -883,13 +894,13 @@ public class UIBaker : EditorWindow
 
     private void SaveTextureAsset(Texture2D texture)
     {
-        if (!Directory.Exists(outputPath))
+        if (!Directory.Exists(_savePath))
         {
-            Directory.CreateDirectory(outputPath);
+            Directory.CreateDirectory(_savePath);
         }
 
         byte[] textureBytes = texture.EncodeToPNG();
-        string texturePath = Path.Combine(outputPath, $"{assetName}_Texture.png");
+        string texturePath = Path.Combine(_savePath, $"{_fileName}.png");
 
         File.WriteAllBytes(texturePath, textureBytes);
         AssetDatabase.Refresh();
@@ -902,12 +913,13 @@ public class UIBaker : EditorWindow
             importer.alphaIsTransparency = true;
             importer.isReadable = false;
             importer.filterMode = FilterMode.Bilinear;
+            importer.SaveAndReimport();
 
             // Set compression settings based on texture properties
             if (HasAlphaChannel(texture))
             {
                 // For textures with alpha, use appropriate compression
-                if (IsDimensionMultipleOf4(texture.width) && IsDimensionMultipleOf4(texture.height))
+                if (IsDimensionMultipleOfFour(texture.width) && IsDimensionMultipleOfFour(texture.height))
                 {
                     importer.textureCompression = TextureImporterCompression.Compressed;
                     importer.compressionQuality = 100; // High quality for UI elements
@@ -925,11 +937,11 @@ public class UIBaker : EditorWindow
             }
 
             // Set pixels per unit based on canvas scale for proper sizing
-            Canvas canvas = targetUIParent.GetComponentInParent<Canvas>();
+            Canvas canvas = _targetUI.GetComponentInParent<Canvas>();
             CanvasScaler canvasScaler = canvas.GetComponent<CanvasScaler>();
 
             float pixelsPerUnit = 100f; // Unity default
-            if (canvasScaler != null && useNativeResolution)
+            if (canvasScaler != null && _useNativeResolution)
             {
                 float scaleFactor = GetCanvasScaleFactor(canvas, canvasScaler);
                 pixelsPerUnit = 100f * scaleFactor;
@@ -941,10 +953,12 @@ public class UIBaker : EditorWindow
             importer.SetTextureSettings(settings);
 
             // Apply platform-specific settings for better optimization
-            TextureImporterPlatformSettings platformSettings = new TextureImporterPlatformSettings();
-            platformSettings.name = "Standalone";
-            platformSettings.overridden = true;
-            platformSettings.maxTextureSize = Mathf.NextPowerOfTwo(Mathf.Max(texture.width, texture.height));
+            TextureImporterPlatformSettings platformSettings = new()
+            {
+                name = "Standalone",
+                overridden = true,
+                maxTextureSize = Mathf.NextPowerOfTwo(Mathf.Max(texture.width, texture.height))
+            };
 
             if (HasAlphaChannel(texture))
             {
@@ -984,36 +998,33 @@ public class UIBaker : EditorWindow
     /// <summary>
     /// Check if dimension is a multiple of 4
     /// </summary>
-    private bool IsDimensionMultipleOf4(int dimension)
-    {
-        return dimension % 4 == 0;
-    }
+    private bool IsDimensionMultipleOfFour(int dimension) => dimension % 4 == 0;
 
-    private void ConsolidateUIElements()
+    private void BakerUIElements()
     {
-        if (!ValidateConsolidation()) return;
+        if (!ValidateBaking()) return;
 
         CreateOutputDirectory();
 
-        Texture2D consolidatedTexture = GenerateConsolidatedTexture();
-        if (consolidatedTexture == null)
+        Texture2D bakedTexture = GenerateBakedTexture();
+        if (bakedTexture == null)
         {
-            EditorUtility.DisplayDialog("Error", "Failed to generate consolidated texture!", "OK");
+            EditorUtility.DisplayDialog("Error", "Failed to generate baked texture!", "OK");
             return;
         }
 
-        string texturePath = Path.Combine(outputPath, $"{assetName}_Texture.png");
-        Sprite consolidatedSprite = AssetDatabase.LoadAssetAtPath<Sprite>(texturePath);
+        string texturePath = Path.Combine(_savePath, $"{_fileName}_Texture.png");
+        Sprite bakedSprite = AssetDatabase.LoadAssetAtPath<Sprite>(texturePath);
 
-        if (consolidatedSprite == null)
+        if (bakedSprite == null)
         {
-            EditorUtility.DisplayDialog("Error", "Failed to load consolidated sprite!", "OK");
+            EditorUtility.DisplayDialog("Error", "Failed to load baked sprite!", "OK");
             return;
         }
 
-        GameObject consolidatedObject = CreateConsolidatedGameObject(consolidatedSprite);
+        GameObject bakedObject = CreatebakedGameObject(bakedSprite);
 
-        if (preserveOriginalHierarchy)
+        if (_preserveOriginalHierarchy)
         {
             DisableOriginalElements();
         }
@@ -1022,39 +1033,38 @@ public class UIBaker : EditorWindow
             DestroyOriginalElements();
         }
 
-        EditorUtility.DisplayDialog("Success",
-            $"UI consolidation completed successfully!\nConsolidated object: {consolidatedObject.name}\nTexture saved at: {texturePath}\nDimensions: {consolidatedTexture.width}x{consolidatedTexture.height} pixels", "OK");
+        EditorUtility.DisplayDialog("Success", $"Sprite saved at: {texturePath}", "OK");
 
-        Selection.activeGameObject = consolidatedObject;
+        Selection.activeGameObject = bakedObject;
     }
 
-    private GameObject CreateConsolidatedGameObject(Sprite sprite)
+    private GameObject CreatebakedGameObject(Sprite sprite)
     {
-        GameObject consolidatedObject = new GameObject($"{assetName}_Consolidated");
-        consolidatedObject.transform.SetParent(targetUIParent.transform.parent);
-        consolidatedObject.transform.SetSiblingIndex(targetUIParent.transform.GetSiblingIndex());
+        GameObject bakedObject = new($"{_fileName}_Baked");
+        bakedObject.transform.SetParent(_targetUI.transform.parent);
+        bakedObject.transform.SetSiblingIndex(_targetUI.transform.GetSiblingIndex());
 
-        RectTransform rectTransform = consolidatedObject.AddComponent<RectTransform>();
-        Image imageComponent = consolidatedObject.AddComponent<Image>();
+        RectTransform rectTransform = bakedObject.AddComponent<RectTransform>();
+        Image imageComponent = bakedObject.AddComponent<Image>();
 
         imageComponent.sprite = sprite;
         imageComponent.type = Image.Type.Simple;
         imageComponent.preserveAspect = false;
 
-        Canvas parentCanvas = targetUIParent.GetComponentInParent<Canvas>();
+        Canvas parentCanvas = _targetUI.GetComponentInParent<Canvas>();
         if (parentCanvas != null)
         {
             RectTransform canvasRect = parentCanvas.GetComponent<RectTransform>();
 
-            if (useNativeResolution && originalCanvasBounds.width > 0 && originalCanvasBounds.height > 0)
+            if (_useNativeResolution && _originalCanvasBounds.width > 0 && _originalCanvasBounds.height > 0)
             {
                 rectTransform.SetParent(canvasRect);
 
                 rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
                 rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-                rectTransform.anchoredPosition = new Vector2(originalCanvasBounds.center.x, originalCanvasBounds.center.y);
+                rectTransform.anchoredPosition = new Vector2(_originalCanvasBounds.center.x, _originalCanvasBounds.center.y);
 
-                rectTransform.sizeDelta = new Vector2(originalCanvasBounds.width, originalCanvasBounds.height);
+                rectTransform.sizeDelta = new Vector2(_originalCanvasBounds.width, _originalCanvasBounds.height);
             }
             else
             {
@@ -1065,33 +1075,33 @@ public class UIBaker : EditorWindow
             }
         }
 
-        return consolidatedObject;
+        return bakedObject;
     }
 
-    private bool ValidateConsolidation()
+    private bool ValidateBaking()
     {
-        if (targetUIParent == null)
+        if (_targetUI == null)
         {
-            EditorUtility.DisplayDialog("Error", "Target UI Parent is not assigned.", "OK");
+            EditorUtility.DisplayDialog("Error", "Target UI is not assigned.", "OK");
             return false;
         }
 
-        if (detectedElements.Count == 0)
+        if (_detectedElements.Count == 0)
         {
             EditorUtility.DisplayDialog("Error", "No UI elements detected. Please scan first.", "OK");
             return false;
         }
 
-        if (detectedElements.FindAll(e => e.includeInConsolidation).Count == 0)
+        if (_detectedElements.FindAll(e => e.includeInBaker).Count == 0)
         {
-            EditorUtility.DisplayDialog("Error", "No elements selected for consolidation.", "OK");
+            EditorUtility.DisplayDialog("Error", "No elements selected for baking.", "OK");
             return false;
         }
 
-        Canvas canvas = targetUIParent.GetComponentInParent<Canvas>();
+        Canvas canvas = _targetUI.GetComponentInParent<Canvas>();
         if (canvas == null)
         {
-            EditorUtility.DisplayDialog("Error", "Target UI Parent must be a child of a Canvas.", "OK");
+            EditorUtility.DisplayDialog("Error", "Target UI must be a child of a Canvas.", "OK");
             return false;
         }
 
@@ -1100,18 +1110,18 @@ public class UIBaker : EditorWindow
 
     private void CreateOutputDirectory()
     {
-        if (!Directory.Exists(outputPath))
+        if (!Directory.Exists(_savePath))
         {
-            Directory.CreateDirectory(outputPath);
+            Directory.CreateDirectory(_savePath);
             AssetDatabase.Refresh();
         }
     }
 
     private void DisableOriginalElements()
     {
-        foreach (UIElementData element in detectedElements)
+        foreach (UIElementData element in _detectedElements)
         {
-            if (element.includeInConsolidation)
+            if (element.includeInBaker)
             {
                 element.gameObject.SetActive(false);
             }
@@ -1120,9 +1130,9 @@ public class UIBaker : EditorWindow
 
     private void DestroyOriginalElements()
     {
-        foreach (UIElementData element in detectedElements)
+        foreach (UIElementData element in _detectedElements)
         {
-            if (element.includeInConsolidation)
+            if (element.includeInBaker)
             {
                 DestroyImmediate(element.gameObject);
             }
@@ -1131,10 +1141,10 @@ public class UIBaker : EditorWindow
 
     private void ClearPreview()
     {
-        if (previewTexture != null)
+        if (_previewTexture != null)
         {
-            DestroyImmediate(previewTexture);
-            previewTexture = null;
+            DestroyImmediate(_previewTexture);
+            _previewTexture = null;
         }
     }
 
