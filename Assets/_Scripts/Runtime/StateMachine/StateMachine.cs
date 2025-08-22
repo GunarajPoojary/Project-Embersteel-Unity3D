@@ -2,7 +2,7 @@ namespace ProjectEmbersteel.StateMachine
 {
     /// <summary>
     /// Abstract base class for managing state transitions and delegating behavior to the current state.
-    /// It provides a consistent interface for handling input, updates, physics, collisions, and animation events.
+    /// It provides a consistent interface for handling input, updates, collisions, and animation events.
     /// </summary>
     public abstract class StateMachine
     {
